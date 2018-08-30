@@ -18,14 +18,14 @@ namespace DependencyInjectionJson.Controllers
         [HttpGet]
         public string Get()
         {
-            return _test.DoSomething("[Get()]");
+            return _test.DoSomething("[TestController][Get()]");
         }
 
         // GET: api/Test/5
         [HttpGet("{id}", Name = "Get")]
         public string Get(int id)
         {
-            return _test.DoSomething("[Get(" + id + ")]");
+            return _test.DoSomething("[TestController][Get(" + id + ")]");
         }
     }
 }

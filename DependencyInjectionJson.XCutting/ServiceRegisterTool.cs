@@ -10,7 +10,7 @@ namespace DependencyInjectionJson.XCutting
 {
     public class ServiceRegisterTool
     {
-        public static List<DependencyInjectionInfo> GetAssemblyIncetedDependencies(string assemblyName, Dictionary<string, DependencyInjectionInfo> map)
+        public static List<DependencyInjectionInfo> GetAssemblyInjetedDependencies(string assemblyName, Dictionary<string, DependencyInjectionInfo> map)
         {
             List<DependencyInjectionInfo> resut = new List<DependencyInjectionInfo>();
             var interfaces = AppDomain.CurrentDomain.GetAssemblies()
