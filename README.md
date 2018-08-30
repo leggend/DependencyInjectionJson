@@ -43,6 +43,7 @@ Ademas de la información de registro definida mediante el CustomAttribute, tamb
 Los registros especificados en este archivo tienen prioridad sobre las implementaciones definidas mediante el CustomAttribute.
 
 Para regustrar automaticamente las implementaciones de cada Assembliby crearemos un servicio de registro en cada uno.
+(Recordar cambiar el nombre del método de registro en cada assembly)
 ```csharp
 public static class IServiceCollectionExtensions
 {
@@ -55,11 +56,16 @@ public static class IServiceCollectionExtensions
             {
                 var serviceType = Type.GetType(injection.ServiceType);
                 var inplementationType = Type.GetType(injection.ImplementationType);
-                var lifetime = injection.Lifetime;
-                services.Add(new ServiceDescriptor(serviceType: serviceType,
-                                        implementationType: inplementationType,
-                                        lifetime: lifetime));
-            }catch(Exception ex)
+                
+                if(serviceType!=null && inplementationType!=null && inplementationType.GetInterfaces().Any(c => c == serviceType))
+                {
+                    var lifetime = injection.Lifetime;
+                    services.Add(new ServiceDescriptor(serviceType: serviceType,
+                                            implementationType: inplementationType,
+                                            lifetime: lifetime));
+                }
+            }
+            catch(Exception ex)
             {
                 //Posiblemente no se encuentra algun tipo
             }
