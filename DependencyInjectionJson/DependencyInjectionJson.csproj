@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="2.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DependencyInjectionJson.Controllers\DependencyInjectionJson.Controllers.csproj" />
+    <ProjectReference Include="..\DependencyInjectionJson.Repositories\DependencyInjectionJson.Repositories.csproj" />
+    <ProjectReference Include="..\DependencyInjectionJson.Services\DependencyInjectionJson.Services.csproj" />
+    <ProjectReference Include="..\DependencyInjectionJson.XCutting\DependencyInjectionJson.XCutting.csproj" />
+  </ItemGroup>
+
+</Project>
