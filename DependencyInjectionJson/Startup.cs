@@ -22,7 +22,7 @@ namespace DependencyInjectionJson
         public void ConfigureServices(IServiceCollection services)
         {
             //Get map of dependeny injection
-            var map = ServiceRegisterTool.GetDependencyInjectionMap("appSettings.json");
+            var map = ServiceRegisterTool.GetDependencyInjectionMap();
             services.RegisterDependencyInjectionRepositories(map);
             services.RegisterDependencyInjectionServices(map);
 

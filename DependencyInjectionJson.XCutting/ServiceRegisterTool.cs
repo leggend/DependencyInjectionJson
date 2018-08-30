@@ -57,7 +57,7 @@ namespace DependencyInjectionJson.XCutting
             return resut;
         }
 
-        public static Dictionary<string, DependencyInjectionInfo> GetDependencyInjectionMap(string fileName)
+        public static Dictionary<string, DependencyInjectionInfo> GetDependencyInjectionMap(string fileName = "appsettings.json")
         {
             Dictionary<string, DependencyInjectionInfo> _map = new Dictionary<string, DependencyInjectionInfo>();
 
