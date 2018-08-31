@@ -7,7 +7,7 @@ namespace DependencyInjectionJson.XCutting
 {
     public class DependencyInjectionInfo
     {
-        public string ServiceType { get; set; }
+        public string InterfaceType { get; set; }
 
         public string ImplementationType { get; set; }
 
@@ -19,9 +19,9 @@ namespace DependencyInjectionJson.XCutting
 
         }
 
-        public DependencyInjectionInfo(string serviceType, string implementationType, ServiceLifetime lifetime)
+        public DependencyInjectionInfo(string interfaceType, string implementationType, ServiceLifetime lifetime)
         {
-            this.ServiceType = serviceType;
+            this.InterfaceType = interfaceType;
             this.ImplementationType = implementationType;
             this.Lifetime = lifetime;
         }

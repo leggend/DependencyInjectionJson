@@ -12,16 +12,22 @@ namespace DependencyInjectionJson.XCutting
     {
         public static List<DependencyInjectionInfo> GetAssemblyInjetedDependencies(string assemblyName, Dictionary<string, DependencyInjectionInfo> map)
         {
+            var assembly = System.Reflection.Assembly.Load(assemblyName);
+            if (!IsAssemblyLoaded(assemblyName))
+            {
+                Microsoft.Extensions.DependencyModel.DependencyContextLoader.Default.Load(assembly);
+            }
+
             List<DependencyInjectionInfo> resut = new List<DependencyInjectionInfo>();
             var interfaces = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(t => t.FullName.StartsWith(assemblyName))
-                .FirstOrDefault().GetExportedTypes().Where(e => e.IsInterface)
+                .FirstOrDefault()?.GetExportedTypes().Where(e => e.IsInterface)
                 .Where(e => e.CustomAttributes.Any(c => c.AttributeType == typeof(ServiceImplementationAttribute)));
 
             foreach (var interficie in interfaces)
             {
                 var customAttr = interficie.CustomAttributes.SingleOrDefault(c => c.AttributeType == typeof(ServiceImplementationAttribute));
-                var serviceTypeName = interficie.FullName;
+                var interfaceTypeName = interficie.FullName;
                 var name = interficie.FullName.Split(".").Last();
                 var interfaceAssemblyName = interficie.FullName.Substring(0, interficie.FullName.Length - (name.Length + 1));
                 var implementationTypeName = interfaceAssemblyName + "." + name.Substring(1);
@@ -46,10 +52,10 @@ namespace DependencyInjectionJson.XCutting
                     lifetimeType = (ServiceLifetime)lifetimeArg;
                 }
 
-                DependencyInjectionInfo service = new DependencyInjectionInfo(serviceType: serviceTypeName, implementationType: implementationTypeName, lifetime: lifetimeType);
-                if(map.ContainsKey(serviceTypeName))
+                DependencyInjectionInfo service = new DependencyInjectionInfo(interfaceType: interfaceTypeName, implementationType: implementationTypeName, lifetime: lifetimeType);
+                if(map.ContainsKey(interfaceTypeName))
                 {
-                    service = map[serviceTypeName];
+                    service = map[interfaceTypeName];
                 }
 
                 resut.Add(service);
@@ -68,18 +74,53 @@ namespace DependencyInjectionJson.XCutting
 
                 foreach (var service in requiredServices)
                 {
-                    if (_map.ContainsKey(service.ServiceType))
+                    if (_map.ContainsKey(service.InterfaceType))
                     {
-                        _map[service.ServiceType] = service;
+                        _map[service.InterfaceType] = service;
                     }
                     else
                     {
-                        _map.Add(service.ServiceType, service);
+                        _map.Add(service.InterfaceType, service);
                     }
                 }
             }
 
             return _map;
+        }
+
+        public static Type GetType(string typename)
+        {
+            Type result = null;
+            if (typename.Contains("."))
+            {
+                var name = typename.Split('.').Last();
+                var assemblyName = typename.Substring(0, typename.Length - (name.Length + 1));
+                var assembly = System.Reflection.Assembly.Load(assemblyName);
+                if (assembly != null)
+                {
+                    result = assembly.GetType(typename);
+                } else
+                {
+                    throw new Exception($"Assembly: '{assemblyName}' not found.");
+                }
+            } else
+            {
+                result = Type.GetType(typename);
+            }
+
+            if(result==null)
+            {
+                //Type not found
+                throw new Exception($"Type: '{typename}' not found.");
+            }
+            return result;
+        }
+
+        private static bool IsAssemblyLoaded(string assemblyName)
+        {
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .Where(t => t.FullName.StartsWith(assemblyName))
+                .FirstOrDefault()==null ? false : true;
         }
 
     }

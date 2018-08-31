@@ -1,6 +1,5 @@
-﻿using DependencyInjectionJson.Services;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using DependencyInjectionJson.IServices;
 
 namespace DependencyInjectionJson.Controllers
 {

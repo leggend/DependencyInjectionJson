@@ -10,18 +10,22 @@ namespace DependencyInjectionJson.Repositories
     {
         public static IServiceCollection RegisterDependencyInjectionRepositories(this IServiceCollection services, Dictionary<string, DependencyInjectionInfo> map)
         {
-            var injectionData = ServiceRegisterTool.GetAssemblyInjetedDependencies("DependencyInjectionJson.Repositories", map);
-            foreach(var injection in injectionData)
+            var assemblyName = "DependencyInjectionJson.Repositories";
+            var assembly = System.Reflection.Assembly.Load(assemblyName);
+            Microsoft.Extensions.DependencyModel.DependencyContextLoader.Default.Load(assembly);
+
+            var injectionData = ServiceRegisterTool.GetAssemblyInjetedDependencies(assemblyName, map);
+            foreach (var injection in injectionData)
             {
                 try
                 {
-                    var serviceType = Type.GetType(injection.ServiceType);
-                    var inplementationType = Type.GetType(injection.ImplementationType);
+                    var interfaceType = ServiceRegisterTool.GetType(injection.InterfaceType);
+                    var inplementationType = ServiceRegisterTool.GetType(injection.ImplementationType);
 
-                    if (serviceType != null && inplementationType != null && inplementationType.GetInterfaces().Any(c => c == serviceType))
+                    if (interfaceType != null && inplementationType != null && inplementationType.GetInterfaces().Any(c => c == interfaceType))
                     {
                         var lifetime = injection.Lifetime;
-                        services.Add(new ServiceDescriptor(serviceType: serviceType,
+                        services.Add(new ServiceDescriptor(serviceType: interfaceType,
                                                implementationType: inplementationType,
                                                lifetime: lifetime));
                     }
@@ -32,6 +36,8 @@ namespace DependencyInjectionJson.Repositories
                 }
             }
             return services;
+
+
         }
     }
 }

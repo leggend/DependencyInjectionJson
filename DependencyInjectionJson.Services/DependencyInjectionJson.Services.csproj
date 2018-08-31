@@ -9,6 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DependencyInjectionJson.IServices\DependencyInjectionJson.IServices.csproj" />
     <ProjectReference Include="..\DependencyInjectionJson.Repositories\DependencyInjectionJson.Repositories.csproj" />
     <ProjectReference Include="..\DependencyInjectionJson.XCutting\DependencyInjectionJson.XCutting.csproj" />
   </ItemGroup>

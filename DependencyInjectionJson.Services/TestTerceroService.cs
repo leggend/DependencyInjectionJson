@@ -1,7 +1,5 @@
-﻿using DependencyInjectionJson.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using DependencyInjectionJson.IServices;
+using DependencyInjectionJson.Repositories;
 
 namespace DependencyInjectionJson.Services
 {
