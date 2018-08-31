@@ -1,6 +1,4 @@
-﻿using DependencyInjectionJson.Repositories;
-using DependencyInjectionJson.Services;
-using DependencyInjectionJson.XCutting;
+﻿using DependencyInjectionJson.XCutting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +19,7 @@ namespace DependencyInjectionJson
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.RegisterDependencyInjections();
+            services.AutoDIRegisterService();
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 

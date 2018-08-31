@@ -2,7 +2,7 @@
 
 namespace DependencyInjectionJson.IServices
 {
-    [ServiceImplementation(implementationType: "DependencyInjectionJson.Services.TestService")]
+    [AutoDIServiceAttribute(implementationType: "DependencyInjectionJson.Services.TestService")]
     public interface ITestService
     {
         string DoSomething(string apiMethod);

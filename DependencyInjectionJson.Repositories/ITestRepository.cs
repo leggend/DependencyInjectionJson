@@ -5,7 +5,7 @@ using System.Text;
 
 namespace DependencyInjectionJson.Repositories
 {
-    [ServiceImplementation()]
+    [AutoDIServiceAttribute()]
     public interface ITestRepository
     {
         string GetRepositoryInfo(string serviceName);
