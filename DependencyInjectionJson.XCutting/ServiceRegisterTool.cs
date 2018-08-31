@@ -10,6 +10,35 @@ namespace DependencyInjectionJson.XCutting
 {
     public class ServiceRegisterTool
     {
+        public static IServiceCollection RegisterDependencyInjectionAssembly(IServiceCollection services, string assemblyName, Dictionary<string, DependencyInjectionInfo> map)
+        {
+            var assembly = System.Reflection.Assembly.Load(assemblyName);
+            Microsoft.Extensions.DependencyModel.DependencyContextLoader.Default.Load(assembly);
+
+            var injectionData = ServiceRegisterTool.GetAssemblyInjetedDependencies(assemblyName, map);
+            foreach (var injection in injectionData)
+            {
+                try
+                {
+                    var interfaceType = ServiceRegisterTool.GetType(injection.InterfaceType);
+                    var inplementationType = ServiceRegisterTool.GetType(injection.ImplementationType);
+
+                    if (interfaceType != null && inplementationType != null && inplementationType.GetInterfaces().Any(c => c == interfaceType))
+                    {
+                        var lifetime = injection.Lifetime;
+                        services.Add(new ServiceDescriptor(serviceType: interfaceType,
+                                               implementationType: inplementationType,
+                                               lifetime: lifetime));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+            }
+            return services;
+        }
+
         public static List<DependencyInjectionInfo> GetAssemblyInjetedDependencies(string assemblyName, Dictionary<string, DependencyInjectionInfo> map)
         {
             var assembly = System.Reflection.Assembly.Load(assemblyName);
@@ -23,43 +52,46 @@ namespace DependencyInjectionJson.XCutting
                 .Where(t => t.FullName.StartsWith(assemblyName))
                 .FirstOrDefault()?.GetExportedTypes().Where(e => e.IsInterface)
                 .Where(e => e.CustomAttributes.Any(c => c.AttributeType == typeof(ServiceImplementationAttribute)));
-
-            foreach (var interficie in interfaces)
+            if(interfaces!=null)
             {
-                var customAttr = interficie.CustomAttributes.SingleOrDefault(c => c.AttributeType == typeof(ServiceImplementationAttribute));
-                var interfaceTypeName = interficie.FullName;
-                var name = interficie.FullName.Split(".").Last();
-                var interfaceAssemblyName = interficie.FullName.Substring(0, interficie.FullName.Length - (name.Length + 1));
-                var implementationTypeName = interfaceAssemblyName + "." + name.Substring(1);
-                var lifetimeType = ServiceLifetime.Transient;
-
-                var impleArg = customAttr?.ConstructorArguments[0].Value as string;
-                if (!string.IsNullOrEmpty(impleArg))
+                foreach (var interficie in interfaces)
                 {
-                    if (impleArg.Contains('.'))
+                    var customAttr = interficie.CustomAttributes.SingleOrDefault(c => c.AttributeType == typeof(ServiceImplementationAttribute));
+                    var interfaceTypeName = interficie.FullName;
+                    var name = interficie.FullName.Split(".").Last();
+                    var interfaceAssemblyName = interficie.FullName.Substring(0, interficie.FullName.Length - (name.Length + 1));
+                    var implementationTypeName = interfaceAssemblyName + "." + name.Substring(1);
+                    var lifetimeType = ServiceLifetime.Transient;
+
+                    var impleArg = customAttr?.ConstructorArguments[0].Value as string;
+                    if (!string.IsNullOrEmpty(impleArg))
                     {
-                        implementationTypeName = impleArg;
+                        if (impleArg.Contains('.'))
+                        {
+                            implementationTypeName = impleArg;
+                        }
+                        else
+                        {
+                            implementationTypeName = interfaceAssemblyName + "." + impleArg;
+                        }
                     }
-                    else
+
+                    var lifetimeArg = customAttr.ConstructorArguments[1].Value;
+                    if (lifetimeArg != null)
                     {
-                        implementationTypeName = interfaceAssemblyName + "." + impleArg;
+                        lifetimeType = (ServiceLifetime)lifetimeArg;
                     }
-                }
 
-                var lifetimeArg = customAttr.ConstructorArguments[1].Value;
-                if (lifetimeArg != null)
-                {
-                    lifetimeType = (ServiceLifetime)lifetimeArg;
-                }
+                    DependencyInjectionInfo service = new DependencyInjectionInfo(interfaceType: interfaceTypeName, implementationType: implementationTypeName, lifetime: lifetimeType);
+                    if (map.ContainsKey(interfaceTypeName))
+                    {
+                        service = map[interfaceTypeName];
+                    }
 
-                DependencyInjectionInfo service = new DependencyInjectionInfo(interfaceType: interfaceTypeName, implementationType: implementationTypeName, lifetime: lifetimeType);
-                if(map.ContainsKey(interfaceTypeName))
-                {
-                    service = map[interfaceTypeName];
+                    resut.Add(service);
                 }
-
-                resut.Add(service);
             }
+
             return resut;
         }
 
@@ -122,6 +154,5 @@ namespace DependencyInjectionJson.XCutting
                 .Where(t => t.FullName.StartsWith(assemblyName))
                 .FirstOrDefault()==null ? false : true;
         }
-
     }
 }

@@ -1,5 +1,7 @@
 ﻿# DependencyInjectionJson
-Se ha creado el CustomAttribute "**ServiceImplementation**" para definir la información necerasria para poder registrar Interficies en el servicio de Inyección de Dependencias de ASP.NET Core.
+Esta solución permite autoregistrar la inyeccion de dependencias de los assemblies de nuestro proyecto.
+
+Para ello, he creado un CustomAttribute "**ServiceImplementation**" que pondremos en las Interficies que queramos autoregistrar.
 
 Los parámetros soportados por este CustomAttribute son:
 + **implementationType:** Nombre (puede incluir o no el namespace) de la clase que se registrará para implementar la interficio.
@@ -16,8 +18,7 @@ public class TestService: ITestService {
 }
 ```
 
-
-Podemos especificar una implentacion alternativa mediante el parámetro "implementationType":
+Podemos especificar una implentacion alternativa mediante el parámetro "**implementationType**":
 ```csharp
 [ServiceImplementation(implementationType: "TestAlternativeService")]
 public interface ITestService {
@@ -27,8 +28,8 @@ public class TestAlternativeService: ITestService {
 }
 ```
 
-Ademas de la información de registro definida mediante el CustomAttribute, tambien podemos especificar en un fichero JSON (por defecto "appsettings.json").
-
+Ademas, podemos definir en un fichero JSON (por defecto se busca en '**appsettings.json**'), las dependencias, teniendo estas prioridad sobre las definidas mediante el CusttomAttribute.
+El formator del fichero JSON es el siguiente:
 ```json
 {
     "services": [
@@ -40,52 +41,26 @@ Ademas de la información de registro definida mediante el CustomAttribute, tamb
     ]
 }
 ```
-Los registros especificados en este archivo tienen prioridad sobre las implementaciones definidas mediante el CustomAttribute.
-
-Para regustrar automaticamente las implementaciones de cada Assembliby crearemos un servicio de registro en cada uno.
-(Recordar cambiar el nombre del método de registro en cada assembly)
+Para autoregistras la inyección de dependencias de nuestros assemblies, hemos de crear una clase '**ServiceRegister.cs**' en nuestra proyecto web, donde registraremos la injección de dependencias de todos nuestros assemblies:
 ```csharp
 public static class IServiceCollectionExtensions
 {
-    public static IServiceCollection RegisterDependencyInjectionServices(this IServiceCollection services, Dictionary<string, DependencyInjectionInfo> map)
+    public static IServiceCollection RegisterDependencyInjections(this IServiceCollection services)
     {
-        var injectionData = ServiceRegisterTool.GetAssemblyIncetedDependencies("DependencyInjectionJson.Services", map);
-        foreach (var injection in injectionData)
-        {
-            try
-            {
-                var serviceType = Type.GetType(injection.ServiceType);
-                var inplementationType = Type.GetType(injection.ImplementationType);
-                
-                if(serviceType!=null && inplementationType!=null && inplementationType.GetInterfaces().Any(c => c == serviceType))
-                {
-                    var lifetime = injection.Lifetime;
-                    services.Add(new ServiceDescriptor(serviceType: serviceType,
-                                            implementationType: inplementationType,
-                                            lifetime: lifetime));
-                }
-            }
-            catch(Exception ex)
-            {
-                //Posiblemente no se encuentra algun tipo
-            }
-        }
+        var map = ServiceRegisterTool.GetDependencyInjectionMap();
+        services = ServiceRegisterTool.RegisterDependencyInjectionAssembly(services, "DependencyInjectionJson.Repositories", map);
+        services = ServiceRegisterTool.RegisterDependencyInjectionAssembly(services, "DependencyInjectionJson.IServices", map);
         return services;
     }
 }
 ```
 
-Finalmente, en el fichero startup.cs recogeremos el "mapa" de registro de dependencias definido en el archivo JSON, y procederemos a llamar al registro de dependencias de cada uno de nuestros assemblies
-
+Finalmente, en el fichero startup.cs, solo tenemos que invocar el servicio de registro que hemos creado.
 ```csharp
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
-        //Get map of dependeny injection
-        var map = ServiceRegisterTool.GetDependencyInjectionMap();
-        services.RegisterDependencyInjectionRepositories(map);
-        services.RegisterDependencyInjectionServices(map);
-
+        services.RegisterDependencyInjections();
         services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
     }
 
