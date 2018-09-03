@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace DependencyInjectionJson.XCutting
 {
@@ -44,10 +45,10 @@ namespace DependencyInjectionJson.XCutting
                         try
                         {
                             this.RegisterFromAssembly(requiredAssembly.Name);
-                        }catch(Exception ex)
+                        }
+                        catch (Exception ex)
                         {
                             Console.WriteLine($"Error trying to register '{requiredAssembly.Name}' assembly.", ex);
-                            //Assembly problem. Not regitered.
                         }
                     }
                 }
@@ -62,15 +63,15 @@ namespace DependencyInjectionJson.XCutting
             {
                 assemblyFileName += ".dll";
             }
-            if(string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(path))
             {
                 path = AppDomain.CurrentDomain.BaseDirectory;
             }
             string assemblyFile = Path.Combine(path, assemblyFileName);
-
+            Assembly assembly = null;
             try
             {
-                var assembly = System.Reflection.Assembly.LoadFrom(assemblyFile);
+                assembly = System.Reflection.Assembly.LoadFrom(assemblyFile);
 
                 if (!IsAssemblyLoaded(assemblyName))
                 {
@@ -81,12 +82,12 @@ namespace DependencyInjectionJson.XCutting
             {
                 throw fnotfoundEx;
             }
-            if(assemblyName.ToUpper().EndsWith(".DLL"))
+            if (assemblyName.ToUpper().EndsWith(".DLL"))
             {
                 assemblyName = assemblyName.Substring(0, assemblyName.Length - 4);
             }
 
-            var injectionData = this.GetAssemblyInjetedDependencies(assemblyName);
+            var injectionData = this.GetAssemblyInjetedDependencies(assembly);
             foreach (var injection in injectionData)
             {
                 try
@@ -109,25 +110,23 @@ namespace DependencyInjectionJson.XCutting
             }
         }
 
-        public List<AutoDIServiceInfo> GetAssemblyInjetedDependencies(string assemblyName)
+        public List<AutoDIServiceInfo> GetAssemblyInjetedDependencies(Assembly assembly)
         {
-            var assembly = System.Reflection.Assembly.Load(assemblyName);
-
             List<AutoDIServiceInfo> resut = new List<AutoDIServiceInfo>();
-            var interfaces = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(t => t.FullName.StartsWith(assemblyName))
-                .FirstOrDefault()?.GetExportedTypes().Where(e => e.IsInterface)
+
+            var interfaces = assembly.GetExportedTypes().Where(e => e.IsInterface)
                 .Where(e => e.CustomAttributes.Any(c => c.AttributeType == typeof(AutoDIServiceAttributeAttribute)));
-            if(interfaces!=null)
+            if (interfaces != null)
             {
                 foreach (var interficie in interfaces)
                 {
+
                     var service = this.GetServiceInfoFromMap(interficie);
-                    if(service==null)
+                    if (service == null)
                     {
                         var interfaceTypeName = interficie.FullName;
                         var implementationTypeName = this.GetImplementationTypeFromParameters(interficie);
-                        if(string.IsNullOrEmpty(implementationTypeName))
+                        if (string.IsNullOrEmpty(implementationTypeName))
                         {
                             implementationTypeName = this.GetDefaultImplementationType(interficie);
                         }
@@ -135,7 +134,7 @@ namespace DependencyInjectionJson.XCutting
                         var lifetimeType = ServiceLifetime.Transient;
 
                         var lifetime = this.GetLifetimeFromParameters(interficie);
-                        if(lifetime!=null)
+                        if (lifetime != null)
                         {
                             lifetimeType = (ServiceLifetime)lifetime;
                         }
@@ -144,6 +143,7 @@ namespace DependencyInjectionJson.XCutting
                             service: interfaceTypeName,
                             implementation: implementationTypeName,
                             lifetime: lifetimeType);
+                        service.ServiceAssembly = assembly;
                     }
                     resut.Add(service);
                 }
@@ -155,7 +155,7 @@ namespace DependencyInjectionJson.XCutting
         private AutoDIServiceInfo GetServiceInfoFromMap(Type interficie)
         {
             AutoDIServiceInfo result = null;
-            if(interficie!=null)
+            if (interficie != null)
             {
                 var interfaceTypeName = interficie.FullName;
                 if (_map != null && _map.ContainsKey(interfaceTypeName))
@@ -170,7 +170,7 @@ namespace DependencyInjectionJson.XCutting
         {
             var implementationTypeName = "";
             var customAttr = interficie.CustomAttributes.SingleOrDefault(c => c.AttributeType == typeof(AutoDIServiceAttributeAttribute));
-            if(customAttr==null)
+            if (customAttr == null)
             {
                 throw new Exception($"Interface '{interficie.FullName}' doesn't has a 'ServiceImplementationAttribute' CustomAttibute.");
             }
@@ -212,14 +212,15 @@ namespace DependencyInjectionJson.XCutting
             {
                 throw new Exception($"Interface '{interficie.FullName}' doesn't has a 'ServiceImplementationAttribute' CustomAttibute.");
             }
-            if(customAttr.ConstructorArguments.Count>1)
+            if (customAttr.ConstructorArguments.Count > 1)
             {
                 return (int)customAttr.ConstructorArguments[1].Value;
-            }else
+            }
+            else
             {
                 return null;
             }
-            
+
         }
 
         private Dictionary<string, AutoDIServiceInfo> GetDependencyInjectionMap(string fileName = "appsettings.json")
@@ -252,22 +253,44 @@ namespace DependencyInjectionJson.XCutting
             Type result = null;
             if (typename.Contains("."))
             {
-                var name = typename.Split('.').Last();
-                var assemblyName = typename.Substring(0, typename.Length - (name.Length + 1));
-                var assembly = System.Reflection.Assembly.Load(assemblyName);
-                if (assembly != null)
+                Assembly assembly = null;
+                var assemblyNamespace = typename.Split('.');
+                int maxNumNamespaces = assemblyNamespace.Length - 1;
+                while (maxNumNamespaces > 0)
+                {
+                    var namespaceName = "";
+                    for (int n = 0; n < maxNumNamespaces; n++)
+                    {
+                        if (namespaceName != "")
+                        {
+                            namespaceName += ".";
+                        }
+                        namespaceName += assemblyNamespace[n];
+                    }
+                    try
+                    {
+                        assembly = System.Reflection.Assembly.Load(namespaceName);
+                        break;
+                    }
+                    catch { }
+
+                    maxNumNamespaces--;
+                }
+                if (assembly == null)
+                {
+                    throw new Exception($"Assembly: '{typename}' not found.");
+                }
+                else
                 {
                     result = assembly.GetType(typename);
-                } else
-                {
-                    throw new Exception($"Assembly: '{assemblyName}' not found.");
                 }
-            } else
+            }
+            else
             {
                 result = Type.GetType(typename);
             }
 
-            if(result==null)
+            if (result == null)
             {
                 throw new Exception($"Type: '{typename}' not found.");
             }
@@ -278,7 +301,7 @@ namespace DependencyInjectionJson.XCutting
         {
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(t => t.FullName.StartsWith(assemblyName))
-                .FirstOrDefault()==null ? false : true;
+                .FirstOrDefault() == null ? false : true;
         }
     }
 
@@ -299,8 +322,10 @@ namespace DependencyInjectionJson.XCutting
 
     public class AutoDIServiceInfo
     {
-        public string Service { get; set; }
+        public Assembly ServiceAssembly { get; set; }
+        public Assembly ImplementationAssembly { get; set; }
 
+        public string Service { get; set; }
         public string Implementation { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
