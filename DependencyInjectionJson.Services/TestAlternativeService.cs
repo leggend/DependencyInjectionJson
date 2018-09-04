@@ -14,7 +14,7 @@ namespace DependencyInjectionJson.Services
         }
         public string DoSomething(string apiMethod)
         {
-            return this._repository.GetRepositoryInfo(apiMethod + "[TestAlternativoService]");
+            return this._repository.GetRepositoryInfo(apiMethod + "[TestAlternativeService]");
         }
     }
 }

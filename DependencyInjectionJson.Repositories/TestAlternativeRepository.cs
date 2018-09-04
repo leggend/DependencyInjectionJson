@@ -8,7 +8,7 @@ namespace DependencyInjectionJson.Repositories
     {
         public string GetRepositoryInfo(string serviceName)
         {
-            return serviceName + "[TestAlternativoRepository] - Hola desde el repositorio alternativo.";
+            return serviceName + "[TestAlternativoRepository] - Hello from TestAlternativoRepository class implementation.";
         }
     }
 

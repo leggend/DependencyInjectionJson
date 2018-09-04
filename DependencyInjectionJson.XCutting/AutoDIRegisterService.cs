@@ -10,9 +10,12 @@ using System.Reflection;
 
 namespace DependencyInjectionJson.XCutting
 {
+    /// <summary>
+    /// Net Core service Register
+    /// </summary>
     public static class IServiceCollectionExtensions
     {
-        public static IServiceCollection AutoDIRegisterService(this IServiceCollection services, Action<object> options = null)
+        public static IServiceCollection AutoDIRegisterService(this IServiceCollection services)
         {
             var register = new AutoDIRegisterService(services);
             register.RegisterAssemblies();
@@ -21,8 +24,16 @@ namespace DependencyInjectionJson.XCutting
         }
     }
 
+    /// <summary>
+    /// Auto Dependenci Injection Register Service class
+    /// </summary>
     public class AutoDIRegisterService
     {
+        private const string JSON_DEFAULT_FILENAME = "appsettings.json";
+        private const string AUTODIREGISTER_KEY = "AutoDIRegisterService";
+        private const string AUTODIREGISTER_ASSEMBLIERS_KEY = "assemblies";
+        private const string AUTODIREGISTER_SERVICES_KEY = "services";
+
         private readonly Dictionary<string, AutoDIServiceInfo> _map;
         private readonly IServiceCollection _services;
 
@@ -32,9 +43,9 @@ namespace DependencyInjectionJson.XCutting
             this._map = this.GetDependencyInjectionMap();
         }
 
-        public void RegisterAssemblies(string fileName = "appsettings.json")
+        public void RegisterAssemblies(string fileName = JSON_DEFAULT_FILENAME)
         {
-            var jsonAssemblies = JObject.Parse(File.ReadAllText(fileName))["AutoDIRegisterService"]["assemblies"];
+            var jsonAssemblies = JObject.Parse(File.ReadAllText(fileName))[AUTODIREGISTER_KEY][AUTODIREGISTER_ASSEMBLIERS_KEY];
             if (jsonAssemblies != null)
             {
                 var requiredAssemblies = JsonConvert.DeserializeObject<List<AutoDIAssemblieInfo>>(jsonAssemblies.ToString());
@@ -116,37 +127,36 @@ namespace DependencyInjectionJson.XCutting
 
             var interfaces = assembly.GetExportedTypes().Where(e => e.IsInterface)
                 .Where(e => e.CustomAttributes.Any(c => c.AttributeType == typeof(AutoDIServiceAttributeAttribute)));
-            if (interfaces != null)
+            if (interfaces == null) return resut;
+
+            foreach (var interficie in interfaces)
             {
-                foreach (var interficie in interfaces)
+
+                var service = this.GetServiceInfoFromMap(interficie);
+                if (service == null)
                 {
-
-                    var service = this.GetServiceInfoFromMap(interficie);
-                    if (service == null)
+                    var interfaceTypeName = interficie.FullName;
+                    var implementationTypeName = this.GetImplementationTypeFromParameters(interficie);
+                    if (string.IsNullOrEmpty(implementationTypeName))
                     {
-                        var interfaceTypeName = interficie.FullName;
-                        var implementationTypeName = this.GetImplementationTypeFromParameters(interficie);
-                        if (string.IsNullOrEmpty(implementationTypeName))
-                        {
-                            implementationTypeName = this.GetDefaultImplementationType(interficie);
-                        }
-
-                        var lifetimeType = ServiceLifetime.Transient;
-
-                        var lifetime = this.GetLifetimeFromParameters(interficie);
-                        if (lifetime != null)
-                        {
-                            lifetimeType = (ServiceLifetime)lifetime;
-                        }
-
-                        service = new AutoDIServiceInfo(
-                            service: interfaceTypeName,
-                            implementation: implementationTypeName,
-                            lifetime: lifetimeType);
-                        service.ServiceAssembly = assembly;
+                        implementationTypeName = this.GetDefaultImplementationType(interficie);
                     }
-                    resut.Add(service);
+
+                    var lifetimeType = ServiceLifetime.Transient;
+
+                    var lifetime = this.GetLifetimeFromParameters(interficie);
+                    if (lifetime != null)
+                    {
+                        lifetimeType = (ServiceLifetime)lifetime;
+                    }
+
+                    service = new AutoDIServiceInfo(
+                        service: interfaceTypeName,
+                        implementation: implementationTypeName,
+                        lifetime: lifetimeType);
+                    service.ServiceAssembly = assembly;
                 }
+                resut.Add(service);
             }
 
             return resut;
@@ -155,15 +165,13 @@ namespace DependencyInjectionJson.XCutting
         private AutoDIServiceInfo GetServiceInfoFromMap(Type interficie)
         {
             AutoDIServiceInfo result = null;
-            if (interficie != null)
-            {
-                var interfaceTypeName = interficie.FullName;
-                if (_map != null && _map.ContainsKey(interfaceTypeName))
-                {
-                    result = _map[interfaceTypeName];
-                }
-            }
-            return result;
+            if (interficie == null) return result;
+
+            var interfaceTypeName = interficie.FullName;
+
+            if (_map == null || !_map.ContainsKey(interfaceTypeName)) return result;
+
+            return _map[interfaceTypeName];
         }
 
         private string GetImplementationTypeFromParameters(Type interficie)
@@ -174,22 +182,23 @@ namespace DependencyInjectionJson.XCutting
             {
                 throw new Exception($"Interface '{interficie.FullName}' doesn't has a 'ServiceImplementationAttribute' CustomAttibute.");
             }
-            var implementationArgument = customAttr.ConstructorArguments[0].Value as string;
-            if (!string.IsNullOrEmpty(implementationArgument))
-            {
-                var interfaceTypeName = interficie.FullName;
-                var interfaceName = interficie.FullName.Split(".").Last();
-                var interfaceAssemblyName = interficie.FullName.Substring(0, interficie.FullName.Length - (interfaceName.Length + 1));
 
-                if (implementationArgument.Contains('.'))
-                {
-                    implementationTypeName = implementationArgument;
-                }
-                else
-                {
-                    implementationTypeName = interfaceAssemblyName + "." + implementationArgument;
-                }
+            var implementationArgument = customAttr.ConstructorArguments[0].Value as string;
+            if (string.IsNullOrEmpty(implementationArgument)) return implementationTypeName;
+
+            var interfaceTypeName = interficie.FullName;
+            var interfaceName = interficie.FullName.Split(".").Last();
+            var interfaceAssemblyName = interficie.FullName.Substring(0, interficie.FullName.Length - (interfaceName.Length + 1));
+
+            if (implementationArgument.Contains('.'))
+            {
+                implementationTypeName = implementationArgument;
             }
+            else
+            {
+                implementationTypeName = interfaceAssemblyName + "." + implementationArgument;
+            }
+            
             return implementationTypeName;
         }
 
@@ -223,28 +232,27 @@ namespace DependencyInjectionJson.XCutting
 
         }
 
-        private Dictionary<string, AutoDIServiceInfo> GetDependencyInjectionMap(string fileName = "appsettings.json")
+        private Dictionary<string, AutoDIServiceInfo> GetDependencyInjectionMap(string fileName = JSON_DEFAULT_FILENAME)
         {
             Dictionary<string, AutoDIServiceInfo> _map = new Dictionary<string, AutoDIServiceInfo>();
 
-            var jsonServices = JObject.Parse(File.ReadAllText(fileName))["AutoDIRegisterService"]["services"];
-            if (jsonServices != null)
-            {
-                var requiredServices = JsonConvert.DeserializeObject<List<AutoDIServiceInfo>>(jsonServices.ToString());
+            var jsonServices = JObject.Parse(File.ReadAllText(fileName))[AUTODIREGISTER_KEY][AUTODIREGISTER_SERVICES_KEY];
+            if (jsonServices == null) return _map;
+            
+            var requiredServices = JsonConvert.DeserializeObject<List<AutoDIServiceInfo>>(jsonServices.ToString());
 
-                foreach (var service in requiredServices)
+            foreach (var service in requiredServices)
+            {
+                if (_map.ContainsKey(service.Service))
                 {
-                    if (_map.ContainsKey(service.Service))
-                    {
-                        _map[service.Service] = service;
-                    }
-                    else
-                    {
-                        _map.Add(service.Service, service);
-                    }
+                    _map[service.Service] = service;
+                }
+                else
+                {
+                    _map.Add(service.Service, service);
                 }
             }
-
+            
             return _map;
         }
 
@@ -305,6 +313,9 @@ namespace DependencyInjectionJson.XCutting
         }
     }
 
+    /// <summary>
+    /// Class to enclose Assembli name from JSON file.
+    /// </summary>
     public class AutoDIAssemblieInfo
     {
         public string Name { get; set; }
@@ -320,6 +331,9 @@ namespace DependencyInjectionJson.XCutting
         }
     }
 
+    /// <summary>
+    /// Class with Assembly Service information for registration.
+    /// </summary>
     public class AutoDIServiceInfo
     {
         public Assembly ServiceAssembly { get; set; }
@@ -344,6 +358,9 @@ namespace DependencyInjectionJson.XCutting
         }
     }
 
+    /// <summary>
+    /// Custom attribute to define Interface implementation.
+    /// </summary>
     public class AutoDIServiceAttributeAttribute : Attribute
     {
         private readonly string implementationType;
