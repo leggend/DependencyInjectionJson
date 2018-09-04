@@ -1,14 +1,14 @@
 ﻿# DependencyInjectionJson
-Esta solución permite autoregistrar la inyeccion de dependencias de los assemblies de nuestro proyecto, mediante el servicio **AutoDIRegisterService**.
+This solution implements the service "**AutoDIRegisterService**", which will be responsible for self-registration in the Net Core Dependency Injection framework, the implementations of our assemblies.
 
-Para ello, he creado un *CustomAttribute* "**ServiceImplementation**" que pondremos en las Interficies que queramos **AutoDIRegisterService** registre.
+**AutoDIServiceAttribute** *CustomAttribute* has been created to decorate our Interfaces with needed information so that **AutoDIRegisterService** can register them in Net Core Dependency Injection framework.
 
-Los parámetros soportados por este *CustomAttribute* son:
-+ **implementationType:** Nombre (puede incluir o no el namespace) de la clase que se registrará para implementar la interficio.
-+ **lifetime:** ServiceLifetime con el que se ha de registrar la dependencia.
+These are the **AutoDIServiceAttribute** arguments:
++ **implementationType** (optional): Implementation class name (with or without namespace).
++ **lifetime** (optional): Service Lifetime for registration.
 
-Si no epecificamos ningun "**implementatioType**", se intentará registrar la clase con el mismo namespace y nombre (sin la primera letra "I") de la Interficie.
-Ejemplo:
+If no "**implementatioType**" is defined, **AutoDIRegisterService** will try to register an implementation class name with the same namespace and name without first char (normally 'I').
+Example:
 ```csharp
 [AutoDIServiceAttribute()]
 public interface ITestService {
@@ -18,7 +18,8 @@ public class TestService: ITestService {
 }
 ```
 
-Podemos especificar una implentacion alternativa mediante el parámetro "**implementationType**":
+We can specify an alternative name for interface implementation.
+If namespace is defined, **AutoDIRegisterService** will try to register with same Interface's namespace.
 ```csharp
 [AutoDIServiceAttribute(implementationType: "TestAlternativeService")]
 public interface ITestService {
@@ -27,8 +28,7 @@ public interface ITestService {
 public class TestAlternativeService: ITestService {
 }
 ```
-
-En un fichero JSON (por defecto se busca en '**appsettings.json**'), definiremos las lista de assemblies en los que el servicio de Autoregistro de dependencias, deberá buscar Interficies con el CustomAttribute "" para proceder a su registro. esta lista de Assemblies estará definida en el nodo "*AutoDIRegisterService->assemblies*"
+**AutoDIRegisterService** use a JSON file ('**appsettings. json**' by default), to define which assemblies must be self-registered.
 ```json
 {
     "AutoDIRegisterService": {
@@ -46,12 +46,9 @@ En un fichero JSON (por defecto se busca en '**appsettings.json**'), definiremos
         ],
     }
 }
-
 ```
 
-Ademas, en este fichero JSON, podemos definir, agregar mnuevas depenedecias a registrar o incluso sobreescribir algunas de las definidas mediante el *CusttomAtrribute*. Estas dependencias definidas en el fichero JSON, tendrán prioridad sobre las definidas por los *CustomAttribute* de cada Interficie. 
-Estas dependendencias adicionales/alternativas se definen en el nodo "*AutoDIRegisterService->services*" del fichero JSON.
-El formator del fichero JSON es el siguiente:
+Additionally, in than JSON file, we can specify custom dependencies, which will have priority over CustomAttribute definition.
 ```json
 {
     "AutoDIRegisterService": {
@@ -69,7 +66,7 @@ El formator del fichero JSON es el siguiente:
       "services": [
         {
           "service": "DependencyInjectionJson.IServices.ITestService",
-          "implementation": "DependencyInjectionJson.Services.TestTerceroService",
+          "implementation": "DependencyInjectionJson.Services.AnotherTestService",
           "lifetime": "Transient"
         }
       ]
@@ -77,8 +74,7 @@ El formator del fichero JSON es el siguiente:
 }
 ```
 
-
-Finalmente, en el fichero startup.cs, solo tenemos que invocar el servicio de registro que hemos creado.
+To use **AutoDIRegisterService** in outo solution, we have to register as other services in *Startup. cs* *ConfigureServices* method.
 ```csharp
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
